@@ -1059,6 +1059,7 @@ IDxcBlob* CompileShader(
 		L"-Od",
 		L"-Zpr",
 	};
+
 	//実際にShaderをコンパイルする
 	IDxcResult* shaderResult = nullptr;
 	hr = dxcCompiler->Compile(
