@@ -440,6 +440,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		D3D12_BLEND_DESC blendDesc{};
 		// すべての色要素を書き込む
 		blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		blendDesc.RenderTarget[0].BlendEnable = TRUE;
+		blendDesc.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		blendDesc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		blendDesc.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		blendDesc.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+		blendDesc.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		blendDesc.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_ZERO;
 
 		
 		// RasiterzerStateの設定
@@ -643,7 +650,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					materialData->w,
 				};
 				ImGui::Begin("Color");
-				ImGui::SliderFloat3("ColorChange", material, -10.0f, 10.0f);
+				ImGui::SliderFloat4("ColorChange", material, 0.0f, 1.0f,"%.3f",0);
+				//ImGui::ColorEdit4("Intensity",)
 
 				ImGui::End();
 
