@@ -47,6 +47,10 @@ struct VertexData {
 	Vector2 texcoord;
 };
 
+struct TransformationMatrix {
+	Matrix4x4 WVP;
+};
+
 #pragma region プロトタイプ宣言
 
 std::wstring ConvertString(const std::string& str);
@@ -94,8 +98,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg,WPARAM wparam, LPARAM lparam) {
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
+D3D12_CPU_DESCRIPTOR_HANDLE GetCPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index)
+{
+	D3D12_CPU_DESCRIPTOR_HANDLE handleCPU = descriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	handleCPU.ptr += (descriptorSize * index);
+	return handleCPU;
+}
+D3D12_GPU_DESCRIPTOR_HANDLE GetGPUDescriptorHandle(ID3D12DescriptorHeap* descriptorHeap, uint32_t descriptorSize, uint32_t index)
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE handleGPU = descriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	handleGPU.ptr += (descriptorSize * index);
+	return handleGPU;
+}
 // Transfor変数を作る
 Transform transform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f} };
+
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     
@@ -252,15 +269,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// 比較関数はLessEqual。つまり、近ければ描画される
 		depthStencilDesc.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
 
+
 		const uint32_t kNumInstance = 10;  // インスタンス数
 		// Instancing用のTransformationMatrixリソースを作る
 		Microsoft::WRL::ComPtr<ID3D12Resource> instancingResource =
 		CreateBufferResource(device, sizeof(TransformationMatrix) * kNumInstance);
 		// 書き込むためのアドレスを取得
-		
-
-
-
+		TransformationMatrix* instancingData = nullptr;
+		instancingResource->Map(0, nullptr, reinterpret_cast<void**>(&instancingData));
+		// 単位行列を書き込んでおく
+		for (uint32_t index = 0;index  < kNumInstance; ++index)
+		{
+			instancingData[index].WVP = MakeIdentity4x4();
+			//instancingData[index].World = MakeIdentity4x4();
+		}
 
 		// コマンドキューを生成する
 		ID3D12CommandQueue* commandQueue = nullptr;
@@ -397,11 +419,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
 		D3D12_ROOT_PARAMETER rootParameters[3] = {};
+
 		D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
 		descriptorRangeForInstancing[0].BaseShaderRegister = 0;
 		descriptorRangeForInstancing[0].NumDescriptors = 1;
 		descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		
 		rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 		rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParameters[0].Descriptor.ShaderRegister = 0;
@@ -578,7 +602,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma region テクスチャ
 
-		//Textureを読んで転送する
+		// Textureを読んで転送する
 		
 
 		DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
@@ -586,12 +610,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ID3D12Resource* textureResource = CreateTextureResource(device, metadata);
 		UploadTextureData(textureResource, mipImages);
 		
-		//metaDataを基にSRVの設定
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		srvDesc.Format = metadata.format;
-		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
+		// DescriptorSizeを取得しておく
+		const uint32_t descriptorSizeSRV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		const uint32_t descriptorSizeRTV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		const uint32_t descriptorSizeDSV = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+
+		// metaDataを基にSRVの設定
+		D3D12_SHADER_RESOURCE_VIEW_DESC instancingSrvDesc{};
+		instancingSrvDesc.Format = DXGI_FORMAT_UNKNOWN;
+		instancingSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		instancingSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+		instancingSrvDesc.Buffer.FirstElement = 0;
+		instancingSrvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+		instancingSrvDesc.Buffer.NumElements = kNumInstance;
+		instancingSrvDesc.Buffer.StructureByteStride = sizeof(TransformationMatrix);
+		D3D12_CPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetCPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+		D3D12_GPU_DESCRIPTOR_HANDLE instancingSrvHandleCPU = GetGPUDescriptorHandle(srvDescriptorHeap, descriptorSizeSRV, 3);
+		device->CreateShaderResourceView(instancingResource.Get(), &instancingSrvDesc, instancingSrvHandleCPU);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC SrvDesc{};
+		SrvDesc.Format = metadata.format;
+		SrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		SrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		SrvDesc.Texture2D.MipLevels = UINT(metadata.mipLevels);
 
 		//SRVを作成するDescriptorHeapの場所を決める
 		D3D12_CPU_DESCRIPTOR_HANDLE textureSrvHandleCPU = srvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
@@ -601,10 +642,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		textureSrvHandleCPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		textureSrvHandleGPU.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		//SRVの生成
-		device->CreateShaderResourceView(textureResource, &srvDesc, textureSrvHandleCPU);
+		device->CreateShaderResourceView(textureResource, &SrvDesc, textureSrvHandleCPU);
 #pragma endregion
 
+		Transform transforms[ kNumInstance ];
+		for (uint32_t index = 0; index < kNumInstance; ++index)
+		{
+			transforms[index].scale = { 1.0f,1.0f,1.0f };
+			transforms[index].rotate = { 0.0f,0.0f,0.0f, };
+			transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
+		}
 
+		for (uint32_t index = 0; index < kNumInstance; ++index)
+		{
+			Matrix4x4 worldMatrix =
+				MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+			instancingData[index].WVP = worldViewProjectionMatrix;
+			//instancingData[index].World = worldMatrix;
+		}
 
 		//ビューボート
 		D3D12_VIEWPORT viewport{};
@@ -682,6 +738,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				*transformationMatrixData = worldViewProjectMatrix;
 				//*wvpData = worldMatrix;
 
+				for (uint32_t index = 0; index < kNumInstance; index++)
+				{
+					Matrix4x4 worldMatrix =
+						MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+					Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+					instancingData[index].WVP = worldViewProjectionMatrix;
+					//instancingData[index].World = worldMatrix;
+				}
+
 #pragma endregion
 
 				ImGui::Render();
@@ -702,8 +767,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 				//TransitionBarrierを張る
 				commandList->ResourceBarrier(1, &barrier);
-
-
 
 				//描画先のRTVを設定する
 				//commandList->OMSetRenderTargets(1, &rtvHandles[backBufferIndex], false, nullptr);
