@@ -261,6 +261,6 @@ Matrix4x4 Inverse(const Matrix4x4& m)
 	return result;
 };
 
-Matrix4x4 cameraMatrix = MakeAffineMatrix();
-
-Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+//Matrix4x4 cameraMatrix = MakeAffineMatrix();
+//
+//Matrix4x4 viewMatrix = Inverse(cameraMatrix);
