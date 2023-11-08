@@ -1,4 +1,5 @@
 #pragma once
+
 struct Matrix4x4
 {
 	float m[4][4];
@@ -11,7 +12,6 @@ struct Vector3
 	float Z;
 	float W;
 };
-
 
 //1.透視投影行列
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip) {
@@ -260,3 +260,7 @@ Matrix4x4 Inverse(const Matrix4x4& m)
 
 	return result;
 };
+
+Matrix4x4 cameraMatrix = MakeAffineMatrix();
+
+Matrix4x4 viewMatrix = Inverse(cameraMatrix);
