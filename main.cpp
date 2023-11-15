@@ -651,14 +651,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
 		}
 
-		for (uint32_t index = 0; index < kNumInstance; ++index)
-		{
-			Matrix4x4 worldMatrix =
-				MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
-			Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
-			instancingData[index].WVP = worldViewProjectionMatrix;
-			//instancingData[index].World = worldMatrix;
-		}
+		//for (uint32_t index = 0; index < kNumInstance; ++index)
+		//{
+		//	Matrix4x4 worldMatrix =
+		//		MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
+		//	Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, viewProjectionMatrix);
+		//	instancingData[index].WVP = worldViewProjectionMatrix;
+		//	//instancingData[index].World = worldMatrix;
+		//}
 
 		//ビューボート
 		D3D12_VIEWPORT viewport{};
@@ -736,7 +736,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				*transformationMatrixData = worldViewProjectMatrix;
 				//*wvpData = worldMatrix;
 
-				for (uint32_t index = 0; index < kNumInstance; index++)
+				for (uint32_t index = 0; index < kNumInstance; ++index)
 				{
 					Matrix4x4 worldMatrix =
 						MakeAffineMatrix(transforms[index].scale, transforms[index].rotate, transforms[index].translate);
