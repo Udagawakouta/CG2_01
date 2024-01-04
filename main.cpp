@@ -15,6 +15,10 @@
 #include "externals/DirectXTex/DirectXTex.h"
 #include "Mymath.h"
 #include <wrl.h>
+#include <cmath>
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 #pragma comment(lib,"d3d12.lib")
@@ -419,7 +423,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
 	// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
-	D3D12_ROOT_PARAMETER rootParameters[3] = {};
+	D3D12_ROOT_PARAMETER rootParameters[2][3] = {};
 
 	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
 	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
@@ -427,18 +431,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[0].Descriptor.ShaderRegister = 0;
-	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
-	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
-	descriptionRootSignature.pParameters = rootParameters;
+	rootParameters[0][0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[0][0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[0][0].Descriptor.ShaderRegister = 0;
+	rootParameters[0][1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[0][1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParameters[0][1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	rootParameters[0][1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+	rootParameters[0][2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[0][2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[0][2].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
+	rootParameters[0][2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+	descriptionRootSignature.pParameters = rootParameters[0];
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
 	// シリアライズしてバイナリにする
@@ -596,6 +600,111 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma endregion
 
 
+#pragma region 球体
+
+	// 三角形の色
+	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
+	ID3D12Resource* SmaterialResource = CreateBufferResource(device, sizeof(Vector4));
+	//マテリアルにデータを書き込む
+	Vector4* SmaterialData = nullptr;
+	//書き込むためのアドレスを取得
+	SmaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&SmaterialData));
+	//今回は赤を書き込んでいる
+	*SmaterialData = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+
+	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
+	//WVP用のリソースを作る。
+	ID3D12Resource* SwvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+	//データを書き込む
+	Matrix4x4* StransformationMatrixData = nullptr;
+	//書き込むためのアドレスを取得
+	SwvpResource->Map(0, nullptr, reinterpret_cast<void**>(&StransformationMatrixData));
+	//単位行列を書き込んでおく
+	*StransformationMatrixData = MakeIdentity4x4();
+
+	const uint32_t kSubdivision = 16;
+
+	uint32_t vertexIndex = kSubdivision * kSubdivision * 6;
+
+	// 頂点
+	ID3D12Resource* sVertexResource = CreateBufferResource(device, sizeof(VertexData) * vertexIndex);
+
+	//頂点バッファビューを作成する
+	D3D12_VERTEX_BUFFER_VIEW sVertexBufferView{};
+	//リソースの先頭のアドレスから使う
+	sVertexBufferView.BufferLocation = sVertexResource->GetGPUVirtualAddress();
+	//使用するリソースのサイズは頂点3つ分のサイズ
+	sVertexBufferView.SizeInBytes = sizeof(VertexData) * vertexIndex;
+	//1頂点あたりのサイズ
+	sVertexBufferView.StrideInBytes = sizeof(VertexData);
+
+	//頂点リソースにデータを書き込む
+	VertexData* sVertexData = nullptr;
+	//書き込むためのアドレスを取得
+	sVertexResource->Map(0, nullptr,
+		reinterpret_cast<void**>(&sVertexData));
+
+	const float kLonEvery = 2.0f * float(M_PI) / float(kSubdivision);//経度分割1つ分の角度
+	const float kLatEvery = float(M_PI) / float(kSubdivision);//緯度分割1つ分の角度
+	// 緯度の方向に分割
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = float(-M_PI) / 2.0f + kLatEvery * latIndex;
+		// 経度の方向に分割しながら線を描く
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			uint32_t start = (latIndex * kSubdivision + lonIndex) * 6;
+			float lon = lonIndex * kLonEvery;
+			// 頂点データを入力する。
+#pragma region 1枚目
+			// 基準点a
+			sVertexData[start].position.x = cosf(lat) * cosf(lon);
+			sVertexData[start].position.y = sinf(lat);
+			sVertexData[start].position.z = cosf(lat) * sinf(lon);
+			sVertexData[start].position.w = 1.0f;
+			sVertexData[start].texcoord = { float(lonIndex) / float(kSubdivision) ,1.0f - float(latIndex) / float(kSubdivision) };
+			// b
+			sVertexData[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
+			sVertexData[start + 1].position.y = sinf(lat + kLatEvery);
+			sVertexData[start + 1].position.z = cosf(lat + kLatEvery) * sinf(lon);
+			sVertexData[start + 1].position.w = 1.0f;
+			sVertexData[start + 1].texcoord = { sVertexData[start].texcoord.x,sVertexData[start].texcoord.y - (1.0f / kSubdivision) };
+			// c
+			sVertexData[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
+			sVertexData[start + 2].position.y = sinf(lat);
+			sVertexData[start + 2].position.z = cosf(lat) * sinf(lon + kLonEvery);
+			sVertexData[start + 2].position.w = 1.0f;
+			sVertexData[start + 2].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y };
+
+#pragma endregion
+
+#pragma region 2枚目
+
+			// b
+			sVertexData[start + 3].position.x = cosf(lat + kLatEvery) * cosf(lon);
+			sVertexData[start + 3].position.y = sinf(lat + kLatEvery);
+			sVertexData[start + 3].position.z = cosf(lat + kLatEvery) * sinf(lon);
+			sVertexData[start + 3].position.w = 1.0f;
+			sVertexData[start + 3].texcoord = { sVertexData[start].texcoord.x,sVertexData[start].texcoord.y - (1.0f / (float)kSubdivision) };
+			// d
+			sVertexData[start + 4].position.x = cosf(lat + kLatEvery) * cosf(lon + kLonEvery);
+			sVertexData[start + 4].position.y = sinf(lat + kLatEvery);
+			sVertexData[start + 4].position.z = cosf(lat + kLatEvery) * sinf(lon + kLonEvery);
+			sVertexData[start + 4].position.w = 1.0f;
+			sVertexData[start + 4].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y - (1.0f / (float)kSubdivision) };
+			// c
+			sVertexData[start + 5].position.x = cosf(lat) * cosf(lon + kLonEvery);
+			sVertexData[start + 5].position.y = sinf(lat);
+			sVertexData[start + 5].position.z = cosf(lat) * sinf(lon + kLonEvery);
+			sVertexData[start + 5].position.w = 1.0f;
+			sVertexData[start + 5].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y };
+
+#pragma endregion
+
+		}
+	}
+
+	
+
+#pragma endregion
 
 	//ID3D12Resource* vertexResource = CreateBufferResource(device, sizeof(Vector4) * 3); 使い方
 
@@ -806,6 +915,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(6, kNumInstance, 0, 0);
+
+
+#pragma region 球体
+			commandList->IASetVertexBuffers(0, 1, &sVertexBufferView);
+			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
+			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			//commandList->SetGraphicsRootConstantBufferView(0, sVertexResource->GetGPUVirtualAddress());
+			commandList->SetGraphicsRootConstantBufferView(0, SmaterialResource->GetGPUVirtualAddress());
+			//wvp用のCBufferの設定
+			commandList->SetGraphicsRootConstantBufferView(1, SwvpResource->GetGPUVirtualAddress());
+
+			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+
+			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
+			commandList->DrawInstanced(vertexIndex, 1, 0, 0);
+#pragma endregion
+
 
 
 			//実際のcommandListのImGuiの描画コマンドを積む
