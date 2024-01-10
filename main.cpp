@@ -424,24 +424,21 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
 	D3D12_ROOT_PARAMETER rootParameters[3] = {};
-
-	D3D12_DESCRIPTOR_RANGE descriptorRangeForInstancing[1] = {};
-	descriptorRangeForInstancing[0].BaseShaderRegister = 0;
-	descriptorRangeForInstancing[0].NumDescriptors = 1;
-	descriptorRangeForInstancing[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descriptorRangeForInstancing[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
+	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
+	descriptorRange[0].BaseShaderRegister = 0;
+	descriptorRange[0].NumDescriptors = 1;
+	descriptorRange[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	descriptorRange[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 	rootParameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[0].Descriptor.ShaderRegister = 0;
-	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParameters[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParameters[1].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	rootParameters[1].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+	rootParameters[1].Descriptor.ShaderRegister = 0;
 	rootParameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRangeForInstancing;
-	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRangeForInstancing);
+	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
+	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
 	descriptionRootSignature.pParameters = rootParameters;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -499,11 +496,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	// Shaderをコンパイルする
-	IDxcBlob* vertexShaderBlob = CompileShader(L"Particle.VS.hlsl",
+	IDxcBlob* vertexShaderBlob = CompileShader(L"Object3d.VS.hlsl",
 		L"vs_6_0", dxcUtils, dxcCompiler, includeHander);
 	assert(vertexShaderBlob != nullptr);
 
-	IDxcBlob* pixelShaderBlob = CompileShader(L"Particle.PS.hlsl",
+	IDxcBlob* pixelShaderBlob = CompileShader(L"Object3d.PS.hlsl",
 		L"ps_6_0", dxcUtils, dxcCompiler, includeHander);
 	assert(pixelShaderBlob != nullptr);
 
@@ -557,24 +554,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//書き込むためのアドレスを取得
 	vertexResource->Map(0, nullptr,
 		reinterpret_cast<void**>(&vertexData));
-	//左下
-	vertexData[0].position = { -0.5f,-0.5f,0.0f,1.0f };
-	vertexData[0].texcoord = { 0.0f,1.0f };
-	//上
-	vertexData[1].position = { -0.5f,0.5f,0.0f,1.0f };
-	vertexData[1].texcoord = { 0.0f,0.0f };
-	//右下
-	vertexData[2].position = { 0.5f,-0.5f,0.0f,1.0f };
-	vertexData[2].texcoord = { 1.0f,1.0f };
-	//左上
-	vertexData[3].position = { -0.5f,0.5f,0.0f,1.0f };
-	vertexData[3].texcoord = { 0.0f,0.0f };
-	//上
-	vertexData[4].position = { 0.5f,0.5f,0.0f,1.0f };
-	vertexData[4].texcoord = { 1.0f,0.0f };
-	//右上
-	vertexData[5].position = { 0.5f,-0.5f,0.0f,1.0f };
-	vertexData[5].texcoord = { 1.0f,1.0f };
+	////左下
+	//vertexData[0].position = { -0.5f,-0.5f,0.0f,1.0f };
+	//vertexData[0].texcoord = { 0.0f,1.0f };
+	////上
+	//vertexData[1].position = { -0.5f,0.5f,0.0f,1.0f };
+	//vertexData[1].texcoord = { 0.0f,0.0f };
+	////右下
+	//vertexData[2].position = { 0.5f,-0.5f,0.0f,1.0f };
+	//vertexData[2].texcoord = { 1.0f,1.0f };
+	////左上
+	//vertexData[3].position = { -0.5f,0.5f,0.0f,1.0f };
+	//vertexData[3].texcoord = { 0.0f,0.0f };
+	////上
+	//vertexData[4].position = { 0.5f,0.5f,0.0f,1.0f };
+	//vertexData[4].texcoord = { 1.0f,0.0f };
+	////右上
+	//vertexData[5].position = { 0.5f,-0.5f,0.0f,1.0f };
+	//vertexData[5].texcoord = { 1.0f,1.0f };
 
 	// 三角形の色
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
@@ -624,17 +621,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	const uint32_t kSubdivision = 16;
 
-	uint32_t vertexIndex = kSubdivision * kSubdivision * 6;
+	const uint32_t kVertexCount = kSubdivision * kSubdivision * 6;
 
 	// 頂点
-	ID3D12Resource* sVertexResource = CreateBufferResource(device, sizeof(VertexData) * vertexIndex);
+	ID3D12Resource* sVertexResource = CreateBufferResource(device, sizeof(VertexData) * kVertexCount);
 
 	//頂点バッファビューを作成する
 	D3D12_VERTEX_BUFFER_VIEW sVertexBufferView{};
 	//リソースの先頭のアドレスから使う
 	sVertexBufferView.BufferLocation = sVertexResource->GetGPUVirtualAddress();
 	//使用するリソースのサイズは頂点3つ分のサイズ
-	sVertexBufferView.SizeInBytes = sizeof(VertexData) * vertexIndex;
+	sVertexBufferView.SizeInBytes = UINT(sizeof(VertexData) * kVertexCount);
 	//1頂点あたりのサイズ
 	sVertexBufferView.StrideInBytes = sizeof(VertexData);
 
@@ -660,43 +657,37 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start].position.y = sinf(lat);
 			sVertexData[start].position.z = cosf(lat) * sinf(lon);
 			sVertexData[start].position.w = 1.0f;
-			sVertexData[start].texcoord = { float(lonIndex) / float(kSubdivision) ,1.0f - float(latIndex) / float(kSubdivision) };
+			sVertexData[start].texcoord.x = float(lonIndex) / float(kSubdivision);
+			sVertexData[start].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
 			// b
 			sVertexData[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
 			sVertexData[start + 1].position.y = sinf(lat + kLatEvery);
 			sVertexData[start + 1].position.z = cosf(lat + kLatEvery) * sinf(lon);
 			sVertexData[start + 1].position.w = 1.0f;
-			sVertexData[start + 1].texcoord = { sVertexData[start].texcoord.x,sVertexData[start].texcoord.y - (1.0f / kSubdivision) };
+			sVertexData[start + 1].texcoord.x = float(lonIndex) / float(kSubdivision);
+			sVertexData[start + 1].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 			// c
 			sVertexData[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
 			sVertexData[start + 2].position.y = sinf(lat);
 			sVertexData[start + 2].position.z = cosf(lat) * sinf(lon + kLonEvery);
 			sVertexData[start + 2].position.w = 1.0f;
-			sVertexData[start + 2].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y };
-
+			sVertexData[start + 2].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
+			sVertexData[start + 2].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
 #pragma endregion
 
 #pragma region 2枚目
 
-			// b
-			sVertexData[start + 3].position.x = cosf(lat + kLatEvery) * cosf(lon);
-			sVertexData[start + 3].position.y = sinf(lat + kLatEvery);
-			sVertexData[start + 3].position.z = cosf(lat + kLatEvery) * sinf(lon);
-			sVertexData[start + 3].position.w = 1.0f;
-			sVertexData[start + 3].texcoord = { sVertexData[start].texcoord.x,sVertexData[start].texcoord.y - (1.0f / (float)kSubdivision) };
-			// d
-			sVertexData[start + 4].position.x = cosf(lat + kLatEvery) * cosf(lon + kLonEvery);
-			sVertexData[start + 4].position.y = sinf(lat + kLatEvery);
-			sVertexData[start + 4].position.z = cosf(lat + kLatEvery) * sinf(lon + kLonEvery);
-			sVertexData[start + 4].position.w = 1.0f;
-			sVertexData[start + 4].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y - (1.0f / (float)kSubdivision) };
 			// c
-			sVertexData[start + 5].position.x = cosf(lat) * cosf(lon + kLonEvery);
-			sVertexData[start + 5].position.y = sinf(lat);
-			sVertexData[start + 5].position.z = cosf(lat) * sinf(lon + kLonEvery);
-			sVertexData[start + 5].position.w = 1.0f;
-			sVertexData[start + 5].texcoord = { sVertexData[start].texcoord.x + (1.0f / (float)kSubdivision),sVertexData[start].texcoord.y };
-
+			vertexData[start + 3] = vertexData[start + 2];
+			// b
+			vertexData[start + 4] = vertexData[start + 1];
+			// d
+			vertexData[start + 5].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
+			vertexData[start + 5].position.y = sin(lat + kLatEvery);
+			vertexData[start + 5].position.z = cos(lat + kLatEvery) * sin(lon + kLonEvery);
+			vertexData[start + 5].position.w = 1.0f;
+			vertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
+			vertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 #pragma endregion
 
 		}
@@ -914,7 +905,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(6, kNumInstance, 0, 0);
+			commandList->DrawInstanced(kVertexCount, kNumInstance, 0, 0);
 
 
 #pragma region 球体
@@ -930,7 +921,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(vertexIndex, 1, 0, 0);
+			commandList->DrawInstanced(kVertexCount, 1, 0, 0);
 #pragma endregion
 
 
