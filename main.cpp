@@ -611,13 +611,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
 	//WVP用のリソースを作る。
-	ID3D12Resource* SwvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
+	ID3D12Resource* SwvpResource = CreateBufferResource(device, sizeof(TransformationMatrix));
 	//データを書き込む
-	Matrix4x4* StransformationMatrixData = nullptr;
+	TransformationMatrix* StransformationMatrixData = nullptr;
 	//書き込むためのアドレスを取得
 	SwvpResource->Map(0, nullptr, reinterpret_cast<void**>(&StransformationMatrixData));
 	//単位行列を書き込んでおく
-	*StransformationMatrixData = MakeIdentity4x4();
+	StransformationMatrixData->WVP = MakeIdentity4x4();
 
 	const uint32_t kSubdivision = 16;
 
@@ -692,8 +692,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		}
 	}
-
-	
 
 #pragma endregion
 
@@ -836,7 +834,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Matrix4x4 worldViewProjectMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 			// viewProjectionMatrix ?
 			Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-			*transformationMatrixData = worldViewProjectMatrix;
+			StransformationMatrixData->WVP = worldViewProjectMatrix;
 			//*wvpData = worldMatrix;
 
 			for (uint32_t index = 0; index < kNumInstance; ++index)
@@ -889,33 +887,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//RootSignatureを設定。PSOに設定しているけど別途設定が必要
 			commandList->SetGraphicsRootSignature(rootSignature);
 			commandList->SetPipelineState(graphicsPipelineState);
-			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			//commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-			commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			//wvp用のCBufferの設定
-			commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
+			//commandList->SetGraphicsRootConstantBufferView(1, wvpResource->GetGPUVirtualAddress());
 			//マテリアルCBufferの場所を設定
 			//commandList->SetGraphicsRootConstantBufferView(0, materialResource->GetGPUVirtualAddress());
 			//SRVのDescriptorTableの先頭を設定。2はrootParameter[2]である。
 			// instancing用のDataを読むためにStructuredBufferのSRVを設定する
 			// commandList->SetGraphicsRootDescriptorTable(1, instancingSrvHandleGPU);
 
-			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-
-			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
-			commandList->DrawInstanced(kVertexCount, kNumInstance, 0, 0);
-
+			//commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 
 #pragma region 球体
 			commandList->IASetVertexBuffers(0, 1, &sVertexBufferView);
 			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
-			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			//commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 			//commandList->SetGraphicsRootConstantBufferView(0, sVertexResource->GetGPUVirtualAddress());
 			commandList->SetGraphicsRootConstantBufferView(0, SmaterialResource->GetGPUVirtualAddress());
-			//wvp用のCBufferの設定
+			//wvp用のCBufferの
 			commandList->SetGraphicsRootConstantBufferView(1, SwvpResource->GetGPUVirtualAddress());
 
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
