@@ -51,6 +51,12 @@ struct TransformationMatrix {
 	Matrix4x4 WVP;
 };
 
+struct Particle
+{
+	Transform transform;
+	Vector3 velocity;
+};
+
 #pragma region プロトタイプ宣言
 
 std::wstring ConvertString(const std::string& str);
@@ -644,12 +650,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	device->CreateShaderResourceView(textureResource, &SrvDesc, textureSrvHandleCPU);
 #pragma endregion
 
-	Transform transforms[kNumInstance];
+	Particle particles[kNumInstance];
 	for (uint32_t index = 0; index < kNumInstance; ++index)
 	{
-		transforms[index].scale = { 1.0f,1.0f,1.0f };
-		transforms[index].rotate = { 0.0f,0.0f,0.0f, };
-		transforms[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
+		particles[index].scale = { 1.0f,1.0f,1.0f };
+		particles[index].rotate = { 0.0f,0.0f,0.0f, };
+		particles[index].translate = { index * 0.1f,index * 0.1f,index * 0.1f };
 	}
 
 	//for (uint32_t index = 0; index < kNumInstance; ++index)
