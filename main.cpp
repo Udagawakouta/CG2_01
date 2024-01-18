@@ -680,16 +680,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 #pragma region 2枚目
 
 			// c
-			vertexData[start + 3] = vertexData[start + 2];
+			sVertexData[start + 3] = sVertexData[start + 2];
 			// b
-			vertexData[start + 4] = vertexData[start + 1];
+			sVertexData[start + 4] = sVertexData[start + 1];
 			// d
-			vertexData[start + 5].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
-			vertexData[start + 5].position.y = sin(lat + kLatEvery);
-			vertexData[start + 5].position.z = cos(lat + kLatEvery) * sin(lon + kLonEvery);
-			vertexData[start + 5].position.w = 1.0f;
-			vertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
-			vertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			sVertexData[start + 5].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
+			sVertexData[start + 5].position.y = sin(lat + kLatEvery);
+			sVertexData[start + 5].position.z = cos(lat + kLatEvery) * sin(lon + kLonEvery);
+			sVertexData[start + 5].position.w = 1.0f;
+			sVertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
+			sVertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 #pragma endregion
 
 		}
