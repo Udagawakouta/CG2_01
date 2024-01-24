@@ -50,10 +50,23 @@ struct Transform {
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
+	Vector3 normal;
 };
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
+	Matrix4x4 World;
+};
+
+struct Material{
+	Vector4 color;
+	int32_t enableLighting;
+};
+
+struct DirectionalLight{
+	Vector4 color;
+	Vector3 direction;
+	float intensity;
 };
 
 #pragma region プロトタイプ宣言
@@ -424,7 +437,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
 	// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
-	D3D12_ROOT_PARAMETER rootParameters[3] = {};
+	D3D12_ROOT_PARAMETER rootParameters[4] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
@@ -440,6 +453,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[3].Descriptor.ShaderRegister = 1;
 	descriptionRootSignature.pParameters = rootParameters;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -460,15 +476,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	// InputLayout
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 	inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
 	inputElementDescs[1].SemanticName = "TEXCOORD";
 	inputElementDescs[1].SemanticIndex = 0;
 	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+	inputElementDescs[2].SemanticName = "NORMAL";
+	inputElementDescs[2].SemanticIndex = 0;
+	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	inputElementDescs[2].AlignedByteOffset=D3D12_APPEND_ALIGNED_ELEMENT;
+
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
@@ -642,6 +665,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	sVertexResource->Map(0, nullptr,
 		reinterpret_cast<void**>(&sVertexData));
 
+	ID3D12Resource* directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
+	DirectionalLight* directionalLightData = nullptr;
+	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalLightData));
+	directionalLightData->color = { 1.0f,1.0f,1.0f,1.0f };
+	directionalLightData->direction = { 0.0f,-1.0f,0.0f };
+	directionalLightData->intensity = 1.0f;
+
 	const float kPi = std::numbers::pi_v<float>;
 	const float kLonEvery = (2 * kPi) / float(kSubdivision);//経度分割1つ分の角度
 	const float kLatEvery = kPi / float(kSubdivision);//緯度分割1つ分の角度
@@ -661,6 +691,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start].position.w = 1.0f;
 			sVertexData[start].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			sVertexData[start].normal.X = sVertexData[start].position.x;
+			sVertexData[start].normal.Y = sVertexData[start].position.y;
+			sVertexData[start].normal.Z = sVertexData[start].position.z;
 			// b
 			sVertexData[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
 			sVertexData[start + 1].position.y = sinf(lat + kLatEvery);
@@ -668,6 +701,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 1].position.w = 1.0f;
 			sVertexData[start + 1].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start + 1].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			sVertexData[start + 1].normal.X = sVertexData[start + 1].position.x;
+			sVertexData[start + 1].normal.Y = sVertexData[start + 1].position.y;
+			sVertexData[start + 1].normal.Z = sVertexData[start + 1].position.z;
 			// c
 			sVertexData[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
 			sVertexData[start + 2].position.y = sinf(lat);
@@ -675,6 +711,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 2].position.w = 1.0f;
 			sVertexData[start + 2].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 2].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			sVertexData[start + 2].normal.X = sVertexData[start + 2].position.x;
+			sVertexData[start + 2].normal.Y = sVertexData[start + 2].position.y;
+			sVertexData[start + 2].normal.Z= sVertexData[start + 2].position.z;
 #pragma endregion
 
 #pragma region 2枚目
@@ -690,6 +729,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 5].position.w = 1.0f;
 			sVertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			sVertexData[start + 5].normal.X = sVertexData[start + 5].position.x;
+			sVertexData[start + 5].normal.Y = sVertexData[start + 5].position.y;
+			sVertexData[start + 5].normal.Z = sVertexData[start + 5].position.z;
 #pragma endregion
 
 		}
@@ -889,7 +931,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//RootSignatureを設定。PSOに設定しているけど別途設定が必要
 			commandList->SetGraphicsRootSignature(rootSignature);
 			commandList->SetPipelineState(graphicsPipelineState);
-			//commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+			commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 			//形状を設定。PSOに設定しているものとはまた別。同じものを設定すると考えておけば良い
 			commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
@@ -915,6 +957,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(1, SwvpResource->GetGPUVirtualAddress());
 
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
+
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(kVertexCount, 1, 0, 0);
@@ -1157,6 +1201,15 @@ ID3D12Resource* CreateTextureResource(ID3D12Device* device, const DirectX::TexMe
 		nullptr,
 		IID_PPV_ARGS(&resource));
 
+	// sprite用のマテリアルリソースを作る
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
+	// マテリアルデータに書き込む
+	Material* materialData = nullptr;
+	// 書き込むためのアドレスを取得
+	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
+	Vector4 color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	materialData->color = color;
+	materialData->enableLighting = true;
 
 
 	assert(SUCCEEDED(hr));
