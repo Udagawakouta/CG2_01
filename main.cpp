@@ -599,13 +599,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 三角形の色
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* materialResource = CreateBufferResource(device, sizeof(Material));
 	//マテリアルにデータを書き込む
-	Vector4* materialData = nullptr;
+	Material* materialData = nullptr;
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤を書き込んでいる
-	*materialData = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	Vector4 color = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	materialData->color = color;
+	materialData->enableLighting = true;
 
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
 	//WVP用のリソースを作る。
@@ -642,6 +644,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SwvpResource->Map(0, nullptr, reinterpret_cast<void**>(&StransformationMatrixData));
 	//単位行列を書き込んでおく
 	StransformationMatrixData->WVP = MakeIdentity4x4();
+	StransformationMatrixData->World = MakeIdentity4x4();
 
 	const uint32_t kSubdivision = 16;
 
@@ -746,7 +749,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// Textureを読んで転送する
 
 
-	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
+	DirectX::ScratchImage mipImages = LoadTexture("resources/monsterBall.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	ID3D12Resource* textureResource = CreateTextureResource(device, metadata);
 	UploadTextureData(textureResource, mipImages);
@@ -852,10 +855,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//ImGui::ShowDemoWindow();
 
 			float material[] = {
-				materialData->x,
-				materialData->y,
-				materialData->z,
-				materialData->w,
+				SmaterialData->x,
+				SmaterialData->y,
+				SmaterialData->z,
+				SmaterialData->w,
 			};
 			ImGui::Begin("Color");
 			ImGui::SliderFloat4("ColorChange", material, 0.0f, 1.0f, "%.3f", 0);
@@ -863,12 +866,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			ImGui::End();
 
-			materialData->x = material[0];
-			materialData->y = material[1];
-			materialData->z = material[2];
-			materialData->w = material[3];
+			SmaterialData->x = material[0];
+			SmaterialData->y = material[1];
+			SmaterialData->z = material[2];
+			SmaterialData->w = material[3];
 
-			transform.rotate.Y += 0.03f;
+			//transform.rotate.Y += 0.03f;
 			Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
@@ -879,7 +882,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// viewProjectionMatrix ?
 			Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 			StransformationMatrixData->WVP = worldViewProjectMatrix;
-			//*wvpData = worldMatrix;
+			StransformationMatrixData->World = worldMatrix;
 
 			for (uint32_t index = 0; index < kNumInstance; ++index)
 			{
