@@ -880,7 +880,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui::Begin("Color");
 			ImGui::SliderFloat4("ColorChange", material, 0.0f, 1.0f, "%.3f", 0);
 			//ImGui::ColorEdit4("Intensity",)
-
+			ImGui::SliderFloat3("LightDirection", material, 0.0f, 1.0f, "%.3f", 0);
 			ImGui::End();
 
 			SmaterialData->x = material[0];
