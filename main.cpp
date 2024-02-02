@@ -55,11 +55,18 @@ struct VertexData {
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
+	Matrix4x4 World;
 };
 
 struct Material{
 	Vector4 color;
 	int32_t enableLighting;
+};
+
+struct DirectionalLight{
+	Vector4 color;
+	Vector3 direction;
+	float intensity;
 };
 
 #pragma region プロトタイプ宣言
@@ -430,7 +437,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
 	// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
-	D3D12_ROOT_PARAMETER rootParameters[3] = {};
+	D3D12_ROOT_PARAMETER rootParameters[4] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
@@ -446,6 +453,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[2].DescriptorTable.pDescriptorRanges = descriptorRange;
 	rootParameters[2].DescriptorTable.NumDescriptorRanges = _countof(descriptorRange);
+	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[3].Descriptor.ShaderRegister = 1;
 	descriptionRootSignature.pParameters = rootParameters;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -608,7 +618,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 #pragma endregion
 
-
+	
 #pragma region 球体
 
 	// 三角形の色
@@ -619,16 +629,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//書き込むためのアドレスを取得
 	SmaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&SmaterialData));
 	//今回は赤を書き込んでいる
-	SmaterialData->color = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	SmaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
 	// Sprite用のマテリアルソースを作る
 	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
-	Material* materialData = nullptr;
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(materialData));
 
 	
 	
 	// Lightingを有効にする
 	SmaterialData->enableLighting = false;
+	ID3D12Resource* directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
+	DirectionalLight* directionalMatrixData = nullptr;
+	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalMatrixData));
+	
+	// デフォ値
+	directionalMatrixData->color = { 1.0f,1.0f,1.0f,1.0f };
+	directionalMatrixData->direction = { 0.0f,1.0f,0.0f };
+	directionalMatrixData->intensity = 1.0f;
 
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
 	//WVP用のリソースを作る。
@@ -681,6 +698,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start].position.w = 1.0f;
 			sVertexData[start].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			sVertexData[start].normal.X = sVertexData[start].position.x;
+			sVertexData[start].normal.Y = sVertexData[start].position.y;
+			sVertexData[start].normal.Z = sVertexData[start].position.z;
 			// b
 			sVertexData[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
 			sVertexData[start + 1].position.y = sinf(lat + kLatEvery);
@@ -688,6 +708,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 1].position.w = 1.0f;
 			sVertexData[start + 1].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start + 1].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			sVertexData[start + 1].normal.X = sVertexData[start + 1].position.x;
+			sVertexData[start + 1].normal.Y = sVertexData[start + 1].position.y;
+			sVertexData[start + 1].normal.Z = sVertexData[start + 1].position.z;
 			// c
 			sVertexData[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
 			sVertexData[start + 2].position.y = sinf(lat);
@@ -695,14 +718,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 2].position.w = 1.0f;
 			sVertexData[start + 2].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 2].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
+			sVertexData[start + 2].normal.X = sVertexData[start + 2].position.x;
+			sVertexData[start + 2].normal.Y = sVertexData[start + 2].position.y;
+			sVertexData[start + 2].normal.Z = sVertexData[start + 2].position.z;
 #pragma endregion
 
 #pragma region 2枚目
 
 			// c
 			sVertexData[start + 3] = sVertexData[start + 2];
+			sVertexData[start + 3].normal.X = sVertexData[start + 3].position.x;
+			sVertexData[start + 3].normal.Y = sVertexData[start + 3].position.y;
+			sVertexData[start + 3].normal.Z = sVertexData[start + 3].position.z;
 			// b
 			sVertexData[start + 4] = sVertexData[start + 1];
+			sVertexData[start + 4].normal.X = sVertexData[start + 4].position.x;
+			sVertexData[start + 4].normal.Y = sVertexData[start + 4].position.y;
+			sVertexData[start + 4].normal.Z = sVertexData[start + 4].position.z;
 			// d
 			sVertexData[start + 5].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
 			sVertexData[start + 5].position.y = sin(lat + kLatEvery);
@@ -710,10 +742,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 5].position.w = 1.0f;
 			sVertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
+			sVertexData[start + 5].normal.X = sVertexData[start + 5].position.x;
+			sVertexData[start + 5].normal.Y = sVertexData[start + 5].position.y;
+			sVertexData[start + 5].normal.Z = sVertexData[start + 5].position.z;
 #pragma endregion
-			sVertexData[start].normal.X = sVertexData[start].position.x;
-			sVertexData[start].normal.Y = sVertexData[start].position.y;
-			sVertexData[start].normal.Z = sVertexData[start].position.z;
 		}
 	}
 
@@ -837,21 +869,36 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				materialData->z,
 				materialData->w,
 			};
+
+			float directionalLight[] = {
+				directionalMatrixData->color.x,
+				directionalMatrixData->color.y,
+				directionalMatrixData->color.z,
+				directionalMatrixData->color.w,
+			};
+
 			ImGui::Begin("Color");
 			ImGui::SliderFloat4("ColorChange", material, 0.0f, 1.0f, "%.3f", 0);
-			//ImGui::ColorEdit4("Intensity",)
+			ImGui::SliderFloat4("Lighting", directionalLight, 0.0f, 1.0f, "%.3f", 0);
+			// ImGui::ColorEdit4("Intensity",)
 
 			ImGui::End();
+
+			directionalMatrixData->color.x = directionalLight[0];
+			directionalMatrixData->color.y = directionalLight[1];
+			directionalMatrixData->color.z = directionalLight[2];
+			directionalMatrixData->color.w = directionalLight[3];
 
 			materialData->x = material[0];
 			materialData->y = material[1];
 			materialData->z = material[2];
 			materialData->w = material[3];
 
-			//transform.rotate.Y += 0.03f;
+			transform.rotate.Y += 0.03f;
 			Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
+			
 			Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraTransform.scale, cameraTransform.rotate, cameraTransform.translate);
 			Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 			//Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
@@ -937,7 +984,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootConstantBufferView(1, SwvpResource->GetGPUVirtualAddress());
 
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
-
+			// マテリアルCBufferの場所を設定
+			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(kVertexCount, 1, 0, 0);
 #pragma endregion
