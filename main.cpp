@@ -50,10 +50,16 @@ struct Transform {
 struct VertexData {
 	Vector4 position;
 	Vector2 texcoord;
+	Vector3 normal;
 };
 
 struct TransformationMatrix {
 	Matrix4x4 WVP;
+};
+
+struct Material{
+	Vector4 color;
+	int32_t enableLighting;
 };
 
 #pragma region プロトタイプ宣言
@@ -460,7 +466,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 
 	// InputLayout
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[2] = {};
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[3] = {};
 	inputElementDescs[0].SemanticName = "POSITION";
 	inputElementDescs[0].SemanticIndex = 0;
 	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -469,6 +475,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	inputElementDescs[1].SemanticIndex = 0;
 	inputElementDescs[1].Format = DXGI_FORMAT_R32G32_FLOAT;
 	inputElementDescs[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+	inputElementDescs[2].SemanticName = "NORMAL";
+	inputElementDescs[2].SemanticIndex = 0;
+	inputElementDescs[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	inputElementDescs[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
 	inputLayoutDesc.pInputElementDescs = inputElementDescs;
 	inputLayoutDesc.NumElements = _countof(inputElementDescs);
@@ -584,6 +594,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//今回は赤を書き込んでいる
 	*materialData = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
 
+
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
 	//WVP用のリソースを作る。
 	ID3D12Resource* wvpResource = CreateBufferResource(device, sizeof(Matrix4x4));
@@ -602,13 +613,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	// 三角形の色
 	//マテリアル用のリソースを作る。今回はcolor1つ分のサイズを用意する
-	ID3D12Resource* SmaterialResource = CreateBufferResource(device, sizeof(Vector4));
+	ID3D12Resource* SmaterialResource = CreateBufferResource(device, sizeof(Material));
 	//マテリアルにデータを書き込む
-	Vector4* SmaterialData = nullptr;
+	Material* SmaterialData = nullptr;
 	//書き込むためのアドレスを取得
 	SmaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&SmaterialData));
 	//今回は赤を書き込んでいる
-	*SmaterialData = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	SmaterialData->color = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	// Sprite用のマテリアルソースを作る
+	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
+	Material* materialData = nullptr;
+	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(materialData));
+
+	
+	
+	// Lightingを有効にする
+	SmaterialData->enableLighting = false;
 
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
 	//WVP用のリソースを作る。
@@ -691,7 +711,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 #pragma endregion
-
+			sVertexData[start].normal.X = sVertexData[start].position.x;
+			sVertexData[start].normal.Y = sVertexData[start].position.y;
+			sVertexData[start].normal.Z = sVertexData[start].position.z;
 		}
 	}
 
@@ -704,7 +726,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// Textureを読んで転送する
 
 
-	DirectX::ScratchImage mipImages = LoadTexture("resources/uvChecker.png");
+	DirectX::ScratchImage mipImages = LoadTexture("resources/monsterBall.png");
 	const DirectX::TexMetadata& metadata = mipImages.GetMetadata();
 	ID3D12Resource* textureResource = CreateTextureResource(device, metadata);
 	UploadTextureData(textureResource, mipImages);
@@ -826,7 +848,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			materialData->z = material[2];
 			materialData->w = material[3];
 
-			transform.rotate.Y += 0.03f;
+			//transform.rotate.Y += 0.03f;
 			Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
 			Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(kClientWidth) / float(kClientHeight), 0.1f, 100.0f);
 			Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
