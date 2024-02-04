@@ -38,7 +38,6 @@ struct Vector4 {
 	float x;
 	float y;
 	float z;
-	float w;
 };
 
 struct Transform {
@@ -602,7 +601,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//書き込むためのアドレスを取得
 	materialResource->Map(0, nullptr, reinterpret_cast<void**>(&materialData));
 	//今回は赤を書き込んでいる
-	*materialData = Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+	*materialData = Vector4(1.0f, 0.0f, 1.0f);
 
 
 	// 三角形の座標とかをGPU(描画してくれる人)に送るための準備
@@ -629,7 +628,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//書き込むためのアドレスを取得
 	SmaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&SmaterialData));
 	//今回は赤を書き込んでいる
-	SmaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	SmaterialData->color = Vector4(1.0f, 1.0f, 1.0f);
 	// Sprite用のマテリアルソースを作る
 	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(materialData));
@@ -637,13 +636,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 	
 	// Lightingを有効にする
-	SmaterialData->enableLighting = false;
+	SmaterialData->enableLighting = true;
 	ID3D12Resource* directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
 	DirectionalLight* directionalMatrixData = nullptr;
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalMatrixData));
 	
 	// デフォ値
-	directionalMatrixData->color = { 1.0f,1.0f,1.0f,1.0f };
+	directionalMatrixData->color = { 1.0f,1.0f,1.0f};
 	directionalMatrixData->direction = { 0.0f,1.0f,0.0f };
 	directionalMatrixData->intensity = 1.0f;
 
@@ -695,7 +694,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start].position.x = cosf(lat) * cosf(lon);
 			sVertexData[start].position.y = sinf(lat);
 			sVertexData[start].position.z = cosf(lat) * sinf(lon);
-			sVertexData[start].position.w = 1.0f;
+			//sVertexData[start].position.w = 1.0f;
 			sVertexData[start].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
 			sVertexData[start].normal.X = sVertexData[start].position.x;
@@ -705,7 +704,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 1].position.x = cosf(lat + kLatEvery) * cosf(lon);
 			sVertexData[start + 1].position.y = sinf(lat + kLatEvery);
 			sVertexData[start + 1].position.z = cosf(lat + kLatEvery) * sinf(lon);
-			sVertexData[start + 1].position.w = 1.0f;
+			//sVertexData[start + 1].position.w = 1.0f;
 			sVertexData[start + 1].texcoord.x = float(lonIndex) / float(kSubdivision);
 			sVertexData[start + 1].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 			sVertexData[start + 1].normal.X = sVertexData[start + 1].position.x;
@@ -715,7 +714,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 2].position.x = cosf(lat) * cosf(lon + kLonEvery);
 			sVertexData[start + 2].position.y = sinf(lat);
 			sVertexData[start + 2].position.z = cosf(lat) * sinf(lon + kLonEvery);
-			sVertexData[start + 2].position.w = 1.0f;
+			//sVertexData[start + 2].position.w = 1.0f;
 			sVertexData[start + 2].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 2].texcoord.y = 1.0f - float(latIndex) / float(kSubdivision);
 			sVertexData[start + 2].normal.X = sVertexData[start + 2].position.x;
@@ -739,7 +738,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			sVertexData[start + 5].position.x = cos(lat + kLatEvery) * cos(lon + kLonEvery);
 			sVertexData[start + 5].position.y = sin(lat + kLatEvery);
 			sVertexData[start + 5].position.z = cos(lat + kLatEvery) * sin(lon + kLonEvery);
-			sVertexData[start + 5].position.w = 1.0f;
+			//sVertexData[start + 5].position.w = 1.0f;
 			sVertexData[start + 5].texcoord.x = float(lonIndex + 1) / float(kSubdivision);
 			sVertexData[start + 5].texcoord.y = 1.0f - float(latIndex + 1) / float(kSubdivision);
 			sVertexData[start + 5].normal.X = sVertexData[start + 5].position.x;
@@ -867,14 +866,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				materialData->x,
 				materialData->y,
 				materialData->z,
-				materialData->w,
+				//materialData->w,
 			};
 
 			float directionalLight[] = {
 				directionalMatrixData->color.x,
 				directionalMatrixData->color.y,
 				directionalMatrixData->color.z,
-				directionalMatrixData->color.w,
+				//directionalMatrixData->color.w,
 			};
 
 			ImGui::Begin("Color");
@@ -887,12 +886,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			directionalMatrixData->color.x = directionalLight[0];
 			directionalMatrixData->color.y = directionalLight[1];
 			directionalMatrixData->color.z = directionalLight[2];
-			directionalMatrixData->color.w = directionalLight[3];
+			//directionalMatrixData->color.w = directionalLight[3];
 
 			materialData->x = material[0];
 			materialData->y = material[1];
 			materialData->z = material[2];
-			materialData->w = material[3];
+			//materialData->w = material[3];
 
 			transform.rotate.Y += 0.03f;
 			Transform cameraTransform{ {1.0f,1.0f,1.0f},{0.0f,0.0f,0.0f},{0.0f,0.0f,-5.0f} };
@@ -906,6 +905,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			// viewProjectionMatrix ?
 			Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 			StransformationMatrixData->WVP = worldViewProjectMatrix;
+			StransformationMatrixData->World = worldMatrix;
 			//*wvpData = worldMatrix;
 
 			for (uint32_t index = 0; index < kNumInstance; ++index)
