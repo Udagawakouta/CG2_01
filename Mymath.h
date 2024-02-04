@@ -10,7 +10,6 @@ struct Vector3
 	float X;
 	float Y;
 	float Z;
-	float W;
 };
 
 //1.透視投影行列
