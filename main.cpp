@@ -61,6 +61,7 @@ struct TransformationMatrix {
 struct Material{
 	Vector4 color;
 	int32_t enableLighting;
+	float shininess;
 };
 
 struct DirectionalLight{
@@ -68,6 +69,11 @@ struct DirectionalLight{
 	Vector3 direction;
 	float intensity;
 };
+
+struct CameraForGPU{
+	Vector3 worldPosition;
+};
+
 
 #pragma region プロトタイプ宣言
 
@@ -437,7 +443,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	descriptionRootSignature.NumStaticSamplers = _countof(staticSamplers);
 
 	// RootParameter作成。複数設定できるので配列。今回は結果１つだけなので長さ１の配列
-	D3D12_ROOT_PARAMETER rootParameters[4] = {};
+	D3D12_ROOT_PARAMETER rootParameters[5] = {};
 	D3D12_DESCRIPTOR_RANGE descriptorRange[1] = {};
 	descriptorRange[0].BaseShaderRegister = 0;
 	descriptorRange[0].NumDescriptors = 1;
@@ -456,6 +462,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	rootParameters[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
 	rootParameters[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 	rootParameters[3].Descriptor.ShaderRegister = 1;
+	rootParameters[4].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParameters[4].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	rootParameters[4].Descriptor.ShaderRegister = 2;
 	descriptionRootSignature.pParameters = rootParameters;
 	descriptionRootSignature.NumParameters = _countof(rootParameters);
 
@@ -630,14 +639,23 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	SmaterialResource->Map(0, nullptr, reinterpret_cast<void**>(&SmaterialData));
 	//今回は赤を書き込んでいる
 	SmaterialData->color = Vector4(1.0f, 1.0f, 1.0f, 1.0f);
+	// Lightingを有効にする
+	SmaterialData->enableLighting = true;
+	SmaterialData->shininess = 100;
 	// Sprite用のマテリアルソースを作る
 	ID3D12Resource* materialResourceSprite = CreateBufferResource(device, sizeof(Material));
 	materialResourceSprite->Map(0, nullptr, reinterpret_cast<void**>(materialData));
 
+	// カメラのリソースを作る
+	ID3D12Resource* cameraResource = CreateBufferResource(device, sizeof(CameraForGPU));
+	// マテリアルにデータを書き込む
+	CameraForGPU* cameraData = nullptr;
+	// 書き込むためのアドレスを取得
+	cameraResource->Map(0, nullptr, reinterpret_cast<void**>(&cameraData));
+	Transform cameraTransform{};
+	cameraData->worldPosition = { 0.0f,0.0f,-10.0f };
+
 	
-	
-	// Lightingを有効にする
-	SmaterialData->enableLighting = true;
 	ID3D12Resource* directionalLightResource = CreateBufferResource(device, sizeof(DirectionalLight));
 	DirectionalLight* directionalMatrixData = nullptr;
 	directionalLightResource->Map(0, nullptr, reinterpret_cast<void**>(&directionalMatrixData));
@@ -987,6 +1005,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			commandList->SetGraphicsRootDescriptorTable(2, textureSrvHandleGPU);
 			// マテリアルCBufferの場所を設定
 			commandList->SetGraphicsRootConstantBufferView(3, directionalLightResource->GetGPUVirtualAddress());
+			// カメラのCBufferの場所を設定
+			commandList->SetGraphicsRootConstantBufferView(4, cameraResource->GetGPUVirtualAddress());
+
 			//描画！(DrawCall/ドローコール)。3頂点で１つのインスタンス。インスタンスについては今後
 			commandList->DrawInstanced(kVertexCount, 1, 0, 0);
 #pragma endregion
