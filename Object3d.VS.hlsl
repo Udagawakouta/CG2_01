@@ -12,10 +12,6 @@ struct VertexShaderInput {
     float32_t3 normal : NORMAL0;
 };
 
-struct Camera{
-    float32_t3 worldPosition;
-};
-
 VertexShaderOutput main(VertexShaderInput input) {
 	VertexShaderOutput output;
 	output.position = mul(input.position, gTransformationMatrix.WVP);

@@ -896,8 +896,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			//};
 
 			ImGui::Begin("Color");
-			ImGui::DragFloat4("ColorChange", &SmaterialData->color.x, 0.001f, 0.0f,1);
-			ImGui::DragFloat3("Lighting", &directionalMatrixData->direction.X, 0.001f, 0.0f, 1 );
+			ImGui::SliderFloat4("ColorChange", &SmaterialData->color.x, 0.0f, 1.0f, "%.3f", 0);
+			ImGui::SliderFloat3("Lighting", &directionalMatrixData->direction.X, 0.0f, 1.0f, "%.3f", 0);
 			// ImGui::ColorEdit4("Intensity",)
 
 			ImGui::End();

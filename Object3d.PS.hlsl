@@ -3,7 +3,6 @@
 struct Material {
 	float32_t4 color;
 	int32_t enableLighting;
-    float32_t4x4 uvTransform;
     float32_t shininess;
 };
 struct DirectionalLight
@@ -11,6 +10,10 @@ struct DirectionalLight
     float32_t4 color;
     float32_t3 direction;
     float intensity;
+};
+struct Camera
+{
+    float32_t3 worldPosition;
 };
 
 ConstantBuffer<Material> gMaterial : register(b0);
